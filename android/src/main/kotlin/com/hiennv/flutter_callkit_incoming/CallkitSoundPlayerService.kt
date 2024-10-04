@@ -7,9 +7,11 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
+import android.media.ToneGenerator
 import android.net.Uri
 import android.os.*
 import android.text.TextUtils
+import android.provider.Settings
 
 class CallkitSoundPlayerService : Service() {
 
@@ -64,100 +66,42 @@ class CallkitSoundPlayerService : Service() {
         }
     }
 
-    MD
-modify this code to use the above suggestion:
 
-
-Copy
-private fun playSound(intent: Intent?) {
+    private fun playSound(intent: Intent?) {
         this.data = intent?.extras
         val sound = this.data?.getString(
             CallkitIncomingBroadcastReceiver.EXTRA_CALLKIT_RINGTONE_PATH,
             ""
         )
-        
+
         println("loading sound")
         println(sound)
+
         try {
-        val uri = sound?.let { getRingtoneUri(it) }
-            ?: getSafeDefaultRingtoneUri()
-            ?: getFallbackRingtoneUri()
-    
-       
-            mediaPlayer(uri)
+            val uri = sound?.let { getRingtoneUri(it) }
+            if (uri != null) {
+                mediaPlayer(uri)
+            } else {
+                playDefaultRingtone()
+            }
         } catch (e: Exception) {
             println("error on playSound")
             e.printStackTrace()
-            playFallbackSound()
-        }
-    }
-    
-    private fun getSafeDefaultRingtoneUri(): Uri? {
-        return try {
-            RingtoneManager.getActualDefaultRingtoneUri(
-                this@CallkitSoundPlayerService,
-                RingtoneManager.TYPE_RINGTONE
-            )
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
-    
-    private fun getFallbackRingtoneUri(): Uri {
-        return Uri.parse("android.resource://${packageName}/${R.raw.default_ringtone}")
-    }
-    
-    private fun playFallbackSound() {
-        try {
-            val fallbackUri = getFallbackRingtoneUri()
-            mediaPlayer(fallbackUri)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            // If all else fails, maybe use a simple ToneGenerator as a last resort
-            playSimpleTone()
-        }
-    }
-    
-    private fun playSimpleTone() {
-        val toneGen = ToneGenerator(AudioManager.STREAM_RING, 100)
-        toneGen.startTone(ToneGenerator.TONE_CDMA_RING_BACK, 3000)
-    }
-
-
-    private fun playSound(intent: Intent?) {
-    this.data = intent?.extras
-    val sound = this.data?.getString(
-        CallkitIncomingBroadcastReceiver.EXTRA_CALLKIT_RINGTONE_PATH,
-        ""
-    )
-    
-    println("loading sound")
-    println(sound)
-    
-    try {
-        val uri = sound?.let { getRingtoneUri(it) }
-        if (uri != null) {
-            mediaPlayer(uri)
-        } else {
             playDefaultRingtone()
         }
-    } catch (e: Exception) {
-        println("error on playSound")
-        e.printStackTrace()
-        playDefaultRingtone()
     }
-}
 
 private fun playDefaultRingtone() {
     try {
         val player = MediaPlayer.create(this, Settings.System.DEFAULT_RINGTONE_URI)
-        player.setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            player.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+        }
         player.start()
         
         // Make sure to release the MediaPlayer when it's no longer needed
@@ -175,7 +119,7 @@ private fun playDefaultRingtone() {
 private fun playSimpleTone() {
     println("Playing simple tone as last resort")
     val toneGen = ToneGenerator(AudioManager.STREAM_RING, 100)
-    toneGen.startTone(ToneGenerator.TONE_CDMA_RING_BACK, 3000)
+    toneGen.startTone(ToneGenerator.TONE_CDMA_ABBR_ALERT, 3000)
 }
 
     private fun mediaPlayer(uri: Uri) {
@@ -192,7 +136,9 @@ private fun playSimpleTone() {
         }
         val assetFileDescriptor = applicationContext.getContentResolver().openAssetFileDescriptor(uri, "r")
         if (assetFileDescriptor != null) {
-            mediaPlayer?.setDataSource(assetFileDescriptor)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                mediaPlayer?.setDataSource(assetFileDescriptor)
+            }
         } else {
             mediaPlayer?.setDataSource(applicationContext, uri)
         }
