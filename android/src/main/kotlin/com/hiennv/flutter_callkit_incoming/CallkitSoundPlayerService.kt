@@ -91,36 +91,44 @@ class CallkitSoundPlayerService : Service() {
         }
     }
 
-private fun playDefaultRingtone() {
-    try {
-        val player = MediaPlayer.create(this, Settings.System.DEFAULT_RINGTONE_URI)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            player.setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
-            )
-        }
-        player.start()
-        
-        // Make sure to release the MediaPlayer when it's no longer needed
-        player.setOnCompletionListener { mp ->
-            mp.release()
-        }
-    } catch (e: Exception) {
-        println("error on playDefaultRingtone")
-        e.printStackTrace()
-        // If even the default ringtone fails, fall back to our simple tone
-        playSimpleTone()
-    }
-}
+    private fun playDefaultRingtone() {
+        println("Attempting to play default ringtone")
+        try {
+            val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            val ringtone = RingtoneManager.getRingtone(applicationContext, defaultUri)
 
-private fun playSimpleTone() {
-    println("Playing simple tone as last resort")
-    val toneGen = ToneGenerator(AudioManager.STREAM_RING, 100)
-    toneGen.startTone(ToneGenerator.TONE_CDMA_ABBR_ALERT, 3000)
-}
+            if (ringtone != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    ringtone.audioAttributes = AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                }
+                ringtone.play()
+            } else {
+                throw Exception("Ringtone is null")
+            }
+        } catch (e: Exception) {
+            println("Error playing default ringtone: ${e.message}")
+            e.printStackTrace()
+            playSimpleTone()
+        }
+    }
+
+    private fun playSimpleTone() {
+        println("Playing simple tone as last resort")
+        try {
+            val toneGen = ToneGenerator(AudioManager.STREAM_RING, 100)
+            toneGen.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 3000)
+            // Release the ToneGenerator after playing
+            Handler(Looper.getMainLooper()).postDelayed({
+                toneGen.release()
+            }, 3000)
+        } catch (e: Exception) {
+            println("Error playing simple tone: ${e.message}")
+            e.printStackTrace()
+        }
+    }
 
     private fun mediaPlayer(uri: Uri) {
         mediaPlayer = MediaPlayer()
