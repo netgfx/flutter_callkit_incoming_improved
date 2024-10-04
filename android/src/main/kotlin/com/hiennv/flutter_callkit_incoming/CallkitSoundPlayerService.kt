@@ -71,8 +71,8 @@ class CallkitSoundPlayerService : Service() {
             ""
         )
         
-        Log.d("loading sound", "Debug message")
-        Log.d(sound, "Debug message")
+        println("loading sound", "Debug message")
+        println(sound, "Debug message")
         try {
         val uri = sound?.let { getRingtoneUri(it) }
             ?: getSafeDefaultRingtoneUri()
@@ -81,7 +81,7 @@ class CallkitSoundPlayerService : Service() {
        
             mediaPlayer(uri)
         } catch (e: Exception) {
-            Log.d("error on playSound", "Debug message")
+            println("error on playSound", "Debug message")
             e.printStackTrace()
             playFallbackSound()
         }
