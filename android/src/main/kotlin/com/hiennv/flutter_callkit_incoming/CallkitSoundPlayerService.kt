@@ -121,26 +121,20 @@ class CallkitSoundPlayerService : Service() {
     private fun playRingtone(uri: Uri) {
         println("playRingtone: Attempting to play ringtone with URI: $uri")
         try {
-            val player = MediaPlayer()
-            player.setDataSource(applicationContext, uri)
-            println("playRingtone: DataSource set")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                player.setAudioAttributes(
-                    AudioAttributes.Builder()
+            val ringtone = RingtoneManager.getRingtone(applicationContext, uri)
+            if (ringtone != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    ringtone.audioAttributes = AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build()
-                )
-            }
-            println("playRingtone: AudioAttributes set")
-            player.prepare()
-            println("playRingtone: MediaPlayer prepared")
-            player.start()
-            println("playRingtone: Playback started")
-
-            player.setOnCompletionListener { mp ->
-                println("playRingtone: Playback completed")
-                mp.release()
+                }
+                println("playRingtone: Ringtone and AudioAttributes set")
+                ringtone.play()
+                println("playRingtone: Ringtone playback started")
+            } else {
+                println("playRingtone: Ringtone is null")
+                throw Exception("Ringtone is null")
             }
         } catch (e: Exception) {
             println("playRingtone: Error occurred: ${e.message}")
@@ -152,8 +146,8 @@ class CallkitSoundPlayerService : Service() {
     private fun playSimpleTone() {
         println("playSimpleTone: Playing simple tone as last resort")
         try {
-            val toneGen = ToneGenerator(AudioManager.STREAM_RING, 100)
-            toneGen.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 3000)
+            val toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
+            toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 3000)
             println("playSimpleTone: Tone generation started")
             Handler(Looper.getMainLooper()).postDelayed({
                 toneGen.release()
