@@ -68,48 +68,62 @@ class CallkitSoundPlayerService : Service() {
 
 
     private fun playSound(intent: Intent?) {
+        println("playSound: Starting playSound function")
         this.data = intent?.extras
+        println("playSound: Intent extras: ${this.data}")
         val sound = this.data?.getString(
             CallkitIncomingBroadcastReceiver.EXTRA_CALLKIT_RINGTONE_PATH,
             ""
         )
 
-        println("loading sound: $sound")
+        println("playSound: Attempting to play sound: $sound")
+
+        if (sound.isNullOrEmpty()) {
+            println("playSound: Sound is null or empty, trying default ringtone")
+            playDefaultRingtone()
+            return
+        }
 
         try {
-            val uri = sound?.let { getRingtoneUri(it) }
+            val uri = getRingtoneUri(sound)
             if (uri != null) {
+                println("playSound: Custom ringtone URI found: $uri")
                 playRingtone(uri)
             } else {
+                println("playSound: getRingtoneUri returned null, trying default")
                 playDefaultRingtone()
             }
         } catch (e: Exception) {
-            println("error on playSound: ${e.message}")
+            println("playSound: Error occurred: ${e.message}")
             e.printStackTrace()
             playDefaultRingtone()
         }
     }
 
     private fun playDefaultRingtone() {
-        println("Attempting to play default ringtone")
+        println("playDefaultRingtone: Attempting to play default ringtone")
         try {
             val defaultUri = RingtoneManager.getActualDefaultRingtoneUri(applicationContext, RingtoneManager.TYPE_RINGTONE)
             if (defaultUri != null) {
+                println("playDefaultRingtone: Default ringtone URI found: $defaultUri")
                 playRingtone(defaultUri)
             } else {
+                println("playDefaultRingtone: Default ringtone URI is null")
                 throw Exception("Default ringtone URI is null")
             }
         } catch (e: Exception) {
-            println("Error playing default ringtone: ${e.message}")
+            println("playDefaultRingtone: Error occurred: ${e.message}")
             e.printStackTrace()
             playSimpleTone()
         }
     }
 
     private fun playRingtone(uri: Uri) {
+        println("playRingtone: Attempting to play ringtone with URI: $uri")
         try {
             val player = MediaPlayer()
             player.setDataSource(applicationContext, uri)
+            println("playRingtone: DataSource set")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 player.setAudioAttributes(
                     AudioAttributes.Builder()
@@ -118,29 +132,35 @@ class CallkitSoundPlayerService : Service() {
                         .build()
                 )
             }
+            println("playRingtone: AudioAttributes set")
             player.prepare()
+            println("playRingtone: MediaPlayer prepared")
             player.start()
+            println("playRingtone: Playback started")
 
             player.setOnCompletionListener { mp ->
+                println("playRingtone: Playback completed")
                 mp.release()
             }
         } catch (e: Exception) {
-            println("Error playing ringtone: ${e.message}")
+            println("playRingtone: Error occurred: ${e.message}")
             e.printStackTrace()
             playSimpleTone()
         }
     }
 
     private fun playSimpleTone() {
-        println("Playing simple tone as last resort")
+        println("playSimpleTone: Playing simple tone as last resort")
         try {
             val toneGen = ToneGenerator(AudioManager.STREAM_RING, 100)
             toneGen.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 3000)
+            println("playSimpleTone: Tone generation started")
             Handler(Looper.getMainLooper()).postDelayed({
                 toneGen.release()
+                println("playSimpleTone: ToneGenerator released")
             }, 3000)
         } catch (e: Exception) {
-            println("Error playing simple tone: ${e.message}")
+            println("playSimpleTone: Error occurred: ${e.message}")
             e.printStackTrace()
         }
     }
