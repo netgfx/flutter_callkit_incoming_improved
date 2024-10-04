@@ -74,18 +74,17 @@ class CallkitSoundPlayerService : Service() {
             ""
         )
 
-        println("loading sound")
-        println(sound)
+        println("loading sound: $sound")
 
         try {
             val uri = sound?.let { getRingtoneUri(it) }
             if (uri != null) {
-                mediaPlayer(uri)
+                playRingtone(uri)
             } else {
                 playDefaultRingtone()
             }
         } catch (e: Exception) {
-            println("error on playSound")
+            println("error on playSound: ${e.message}")
             e.printStackTrace()
             playDefaultRingtone()
         }
@@ -94,22 +93,39 @@ class CallkitSoundPlayerService : Service() {
     private fun playDefaultRingtone() {
         println("Attempting to play default ringtone")
         try {
-            val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-            val ringtone = RingtoneManager.getRingtone(applicationContext, defaultUri)
-
-            if (ringtone != null) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    ringtone.audioAttributes = AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build()
-                }
-                ringtone.play()
+            val defaultUri = RingtoneManager.getActualDefaultRingtoneUri(applicationContext, RingtoneManager.TYPE_RINGTONE)
+            if (defaultUri != null) {
+                playRingtone(defaultUri)
             } else {
-                throw Exception("Ringtone is null")
+                throw Exception("Default ringtone URI is null")
             }
         } catch (e: Exception) {
             println("Error playing default ringtone: ${e.message}")
+            e.printStackTrace()
+            playSimpleTone()
+        }
+    }
+
+    private fun playRingtone(uri: Uri) {
+        try {
+            val player = MediaPlayer()
+            player.setDataSource(applicationContext, uri)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                player.setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+            }
+            player.prepare()
+            player.start()
+
+            player.setOnCompletionListener { mp ->
+                mp.release()
+            }
+        } catch (e: Exception) {
+            println("Error playing ringtone: ${e.message}")
             e.printStackTrace()
             playSimpleTone()
         }
@@ -120,7 +136,6 @@ class CallkitSoundPlayerService : Service() {
         try {
             val toneGen = ToneGenerator(AudioManager.STREAM_RING, 100)
             toneGen.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 3000)
-            // Release the ToneGenerator after playing
             Handler(Looper.getMainLooper()).postDelayed({
                 toneGen.release()
             }, 3000)
